@@ -744,6 +744,35 @@ details>summary:hover,details[open]>summary{color:var(--green)}
 .dot-ok{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
 .dot-no{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber);
   animation:pulseGlow 2.4s ease-in-out infinite}
+
+/* ═══ Feedback visual, animações e componentes novos ═══ */
+@keyframes statFlash{0%{box-shadow:0 0 0 0 var(--gd)}35%{box-shadow:0 0 0 4px var(--gd)}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes riseIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ip-stat{transition:box-shadow .35s ease,transform .2s ease}
+.ip-stat.flash{animation:statFlash .9s ease-out}
+.ip-stat.flash .ip-stat-val{color:var(--green)}
+.ip-stat-val{transition:color .5s ease}
+.mv-preview{display:none;margin:12px 0 4px;padding:12px 13px;border-radius:12px;border:1px dashed var(--b);
+  background:var(--ov1);font-size:12.5px;animation:riseIn .25s ease}
+.mv-preview.show{display:block}
+.mv-prev-t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);font-weight:700;margin-bottom:8px}
+.mv-prev-row{display:flex;justify-content:space-between;gap:10px;padding:3px 0;color:var(--t2)}
+.mv-prev-row .mono{font-family:var(--m);color:var(--t1)}
+.mv-prev-row b{color:var(--green)}
+.mv-prev-note{margin-top:8px;color:var(--t3);font-size:11.5px;line-height:1.5}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{padding:5px 11px;border-radius:999px;border:1px solid var(--b);background:var(--ov1);color:var(--t2);
+  font-size:12px;font-weight:650;cursor:pointer;transition:all .18s ease;font-family:var(--m)}
+.chip:hover{border-color:var(--bh);color:var(--t1);background:var(--ov2);transform:translateY(-1px)}
+.sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;color:var(--t3)}
+.sync-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--t3)}
+.sync-badge.ok::before{background:var(--green);box-shadow:0 0 8px var(--green)}
+.sync-badge.warn::before{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.badge-sched{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:9.5px;font-weight:700;
+  background:rgba(56,189,248,.14);color:var(--sky);border:1px solid rgba(56,189,248,.28);vertical-align:middle}
+.ap-row.pending{opacity:.55}
+.btn[disabled]{opacity:.6;cursor:not-allowed}
+.mb14{margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -888,8 +917,8 @@ details>summary:hover,details[open]>summary{color:var(--green)}
    CONFIGURAÇÃO DO SUPABASE
    Troque pelos dados do SEU projeto (Settings → API).
 ══════════════════════════════════════════════════════════════ */
-const SUPABASE_URL      = "https://ytbkdpngkvfxfsmixtpx.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0YmtkcG5na3ZmeGZzbWl4dHB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzY3NTcsImV4cCI6MjA5OTU1Mjc1N30.Y_E69ZWBGzg1ln49LesWSf5-pleQKGZcHGTN1gaEtEA";
+const SUPABASE_URL      = "https://ejdboszoswqvgsjsrcmf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZGJvc3pvc3dxdmdzanNyY21mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODI2NzcsImV4cCI6MjA5ODE1ODY3N30.eK7FeZ9N8WabTR6UcLN9XSz6zXl4jLc_NW_FimMUX9M";
 
 /* ══════════════════════════════════════════════════════════════
    CONSTANTES DO PROJETO DE LIBERDADE FINANCEIRA
@@ -927,9 +956,12 @@ const PHASES_DEFAULT=[
    steps:['Rolagem final dos ~R$ 870.000 + R$ 300/mês por ~7 anos','Por volta de 2062 o patrimônio ultrapassa R$ 2.000.000','Migrar para FIIs / Tesouro com juros semestrais → R$ 10.000/mês limpos, com o principal intacto e corrigido pela inflação']},
 ];
 const MOV_TYPES=[['inicial','Aplicação inicial'],['aporte','Aporte'],['resgate','Resgate'],
-  ['rendimento','Rendimento'],['correcao','Correção'],['rolagem','Rolagem']];
+  ['rendimento','Rendimento'],['dividendo','Dividendo / provento'],['juros','Juros recebidos'],
+  ['taxa','Taxa / custo'],['correcao','Correção'],['rolagem','Rolagem']];
 const MOV_META={inicial:['Aplicação inicial','var(--green)','🌱'],aporte:['Aporte','var(--green)','💸'],
   resgate:['Resgate','var(--red)','📤'],rendimento:['Rendimento','var(--indigo)','📈'],
+  dividendo:['Dividendo','var(--indigo)','🏢'],juros:['Juros','var(--indigo)','🪙'],
+  taxa:['Taxa','var(--red)','🧾'],
   correcao:['Correção','var(--amber)','🛠'],rolagem:['Rolagem','var(--sky)','🔁']};
 
 /* ══════════════════════════════════════════════════════════════
@@ -951,6 +983,10 @@ const ST={
   page:'plan',
   plan:null,phases:[],invs:[],contribs:[],profile:null,
   loaded:false,syncing:null,
+  rev:0,                      // revisão dos dados — invalida o cache de cálculo
+  lastSync:0,                 // timestamp da última leitura do banco
+  positions:[],               // posições calculadas pelo próprio PostgreSQL (view)
+  hasViews:false,verified:null,
   invView:{mode:'list',id:null},
   apf:{inv:'',type:'',page:1},
 };
@@ -1265,6 +1301,7 @@ async function doRecover(e){
   setBtn('rec-btn',false,'Enviar link de recuperação');
 }
 async function doLogout(){
+  stopRealtime();
   const ok=await confirmModal('Sair da conta','Deseja encerrar a sessão neste dispositivo?','Sair');
   if(!ok)return;
   SB.signOut();clearSes();
@@ -1419,13 +1456,107 @@ async function nav(page){
   $('mcontent').scrollTop=0;
   await loadPage(page);
 }
+const PAGES={plan:renderPlanPage,wallet:renderInvPage,contribs:renderAportesPage,sim:renderSimPage};
+let _rendering=false,_queued=null;
 async function loadPage(p){
-  const fn={plan:renderPlanPage,wallet:renderInvPage,contribs:renderAportesPage,sim:renderSimPage}[p];
-  if(fn)await fn();
+  const fn=PAGES[p];
+  if(!fn)return;
+  if(_rendering){_queued=p;return}          // nunca perde o último repaint
+  _rendering=true;
+  try{ await fn(); animateStats($('pg-'+p)); }
+  catch(err){ console.error('[render '+p+']',err); toast('Erro ao montar a tela: '+friendly(err),'err'); }
+  finally{
+    _rendering=false;
+    if(_queued){const q=_queued;_queued=null;loadPage(q)}
+  }
+}
+
+/* ── Contadores animados dos cards (feedback visual do recálculo) ── */
+const STAT_PREV=new Map();
+function statKey(box){
+  return ST.page+'|'+(ST.page==='wallet'&&ST.invView.mode==='detail'?ST.invView.id:'')+'|'+box.dataset.stat;
+}
+function animateStats(scope){
+  const root=scope||document;
+  if(!root||!root.querySelectorAll)return;
+  root.querySelectorAll('.ip-stat[data-stat]').forEach(box=>{
+    const el=box.querySelector('.ip-stat-val');
+    if(!el)return;
+    const key=statKey(box), target=Number(box.dataset.v)||0, prev=STAT_PREV.get(key);
+    STAT_PREV.set(key,target);
+    if(prev==null||reduceMotion()||Math.abs(prev-target)<0.005)return;
+    countUp(el,prev,target,700);
+    box.classList.remove('flash');void box.offsetWidth;box.classList.add('flash');
+  });
+}
+function countUp(el,from,to,dur){
+  const t0=performance.now();
+  const step=t=>{
+    const p=Math.min((t-t0)/dur,1),e=1-Math.pow(1-p,3);
+    el.textContent=fmt(from+(to-from)*e);
+    if(p<1)requestAnimationFrame(step);else el.textContent=fmt(to);
+  };
+  requestAnimationFrame(step);
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SYNC
+   STORE REATIVO — toda escrita passa por aqui
+   ───────────────────────────────────────────────────────────────
+   Store.touch()  → invalida o cache de cálculo, repinta a página
+                    ativa e marca as outras como sujas.
+   Store.commit() → mutação otimista + persistência + reconciliação
+                    com o banco (com rollback automático em erro).
+   Nada fica "travado": os cards leem sempre de ST.contribs/ST.invs,
+   que são reconciliados com o Supabase após cada escrita.
+══════════════════════════════════════════════════════════════ */
+const Bus={
+  m:{},
+  on(ev,fn){(Bus.m[ev]=Bus.m[ev]||[]).push(fn);return()=>Bus.off(ev,fn)},
+  off(ev,fn){Bus.m[ev]=(Bus.m[ev]||[]).filter(f=>f!==fn)},
+  emit(ev,data){(Bus.m[ev]||[]).forEach(f=>{try{f(data)}catch(e){console.error('[bus]',ev,e)}})},
+};
+
+const Store={
+  /* Invalida cálculos e repinta tudo que estiver visível */
+  touch(opts){
+    ST.rev++;
+    finInvalidate();
+    Bus.emit('data:changed',opts||{});
+    renderActive();
+  },
+  /* Mutação otimista com rollback */
+  async commit({label,optimistic,persist,onDone,reconcile=true}){
+    const snap={invs:ST.invs.slice(),contribs:ST.contribs.slice()};
+    let temp=null;
+    try{
+      if(optimistic)temp=optimistic();
+      Store.touch();
+      const result=await persist(temp);
+      if(onDone)onDone(result);
+      Store.touch({saved:true});
+      if(reconcile)scheduleReconcile();
+      return result;
+    }catch(err){
+      ST.invs=snap.invs;ST.contribs=snap.contribs;
+      Store.touch();
+      const msg=friendly(err);
+      toast((label?label+': ':'')+msg,'err',{label:'Tentar de novo',fn:()=>Store.commit({label,optimistic,persist,onDone,reconcile})});
+      console.error('[commit]',label,err);
+      throw err;
+    }
+  },
+};
+
+/* Repinta a página ativa; as demais são repintadas ao navegar (sempre do estado real) */
+let _rafRender=null;
+function renderActive(){
+  if(!$('sc-app')||!$('sc-app').classList.contains('active'))return;
+  if(_rafRender)cancelAnimationFrame(_rafRender);
+  _rafRender=requestAnimationFrame(()=>{_rafRender=null;loadPage(ST.page)});
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CARREGAMENTO / RECONCILIAÇÃO COM O BANCO
 ══════════════════════════════════════════════════════════════ */
 async function enterApp(){
   paintProfile();
@@ -1436,6 +1567,7 @@ async function enterApp(){
   await schemaSelfTest();
   await seedPlan();
   await nav('plan');
+  startRealtime();
 }
 let _schemaChecked=false;
 async function schemaSelfTest(){
@@ -1443,29 +1575,120 @@ async function schemaSelfTest(){
   const tables=['plan','plan_phases','investments','investment_contributions'];
   const results=await Promise.allSettled(tables.map(t=>SB.call('/rest/v1/'+t+'?select=id&limit=1')));
   const missing=tables.filter((t,i)=>results[i].status==='rejected');
-  if(missing.length)toast('Banco incompleto: falta a tabela "'+missing[0]+'". Rode o SQL de instalação no Supabase.','err');
+  if(missing.length){
+    toast('Banco incompleto: falta a tabela "'+missing[0]+'". Rode o SQL de instalação no Supabase.','err');
+    return;
+  }
+  /* A view de conferência é opcional: se existir, o app confere os cards com o banco */
+  try{await SB.call('/rest/v1/v_investment_position?select=investment_id&limit=1');ST.hasViews=true}
+  catch{ST.hasViews=false}
+}
+
+async function fetchAll(){
+  const [pl,ph,iv,ct]=await Promise.allSettled([
+    SB.get('plan'),SB.get('plan_phases'),SB.get('investments'),
+    SB.call('/rest/v1/investment_contributions?select=*&order=contribution_date.desc,created_at.desc'),
+  ]);
+  if(iv.status==='rejected')throw (iv.reason||new Error('falha ao carregar investimentos'));
+  if(ct.status==='rejected')throw (ct.reason||new Error('falha ao carregar movimentações'));
+  return{
+    plan   : pl.status==='fulfilled'?(pl.value[0]||null):null,
+    phases : ph.status==='fulfilled'?ph.value.slice().sort((a,b)=>a.phase_number-b.phase_number):[],
+    invs   : iv.value||[],
+    contribs: ct.value||[],
+  };
 }
 async function sync(force=false){
   if(ST.loaded&&!force)return true;
   if(ST.syncing)return ST.syncing;
   ST.syncing=(async()=>{
     if(!(await ensureSession()))return false;
-    const [pl,ph,iv,ct]=await Promise.allSettled([
-      SB.get('plan'),SB.get('plan_phases'),SB.get('investments'),SB.get('investment_contributions')
-    ]);
-    if(iv.status==='rejected'){
-      toast('Falha ao carregar dados: '+((iv.reason&&iv.reason.message)||'erro'),'err',
-        {label:'Tentar de novo',fn:()=>sync(true).then(()=>loadPage(ST.page))});
+    try{
+      const d=await fetchAll();
+      ST.plan=d.plan;ST.phases=d.phases;ST.invs=d.invs;ST.contribs=d.contribs;
+      ST.loaded=true;ST.lastSync=Date.now();
+      ST.rev++;finInvalidate();
+      return true;
+    }catch(err){
+      toast('Falha ao carregar dados: '+friendly(err),'err',
+        {label:'Tentar de novo',fn:()=>sync(true).then(ok=>ok&&renderActive())});
       return false;
     }
-    ST.plan   = pl.status==='fulfilled'?(pl.value[0]||null):null;
-    ST.phases = ph.status==='fulfilled'?ph.value.slice().sort((a,b)=>a.phase_number-b.phase_number):[];
-    ST.invs   = iv.value;
-    ST.contribs = ct.status==='fulfilled'?ct.value:[];
-    ST.loaded=true;return true;
   })().finally(()=>{ST.syncing=null});
   return ST.syncing;
 }
+
+/* Reconciliação: depois de cada escrita, relê o banco e repinta se houver diferença.
+   Garante que a tela mostre SEMPRE os dados reais persistidos. */
+let _recTimer=null,_reconciling=false;
+function scheduleReconcile(delay=500){
+  clearTimeout(_recTimer);
+  _recTimer=setTimeout(()=>reconcile(),delay);
+}
+async function reconcile(){
+  if(_reconciling||!navigator.onLine||!SES)return;
+  _reconciling=true;
+  try{
+    const d=await fetchAll();
+    const changed=JSON.stringify(d.invs)!==JSON.stringify(ST.invs)||
+                  JSON.stringify(d.contribs)!==JSON.stringify(ST.contribs);
+    ST.plan=d.plan||ST.plan;
+    if(d.phases.length)ST.phases=d.phases;
+    ST.invs=d.invs;ST.contribs=d.contribs;
+    ST.lastSync=Date.now();
+    if(changed)Store.touch();else{ST.rev++;finInvalidate()}
+    if(ST.hasViews)verifyWithDatabase();
+  }catch(err){/* silencioso: o estado local continua válido */}
+  _reconciling=false;
+}
+/* Confere os números da tela com os calculados pelo PostgreSQL (view v_investment_position) */
+async function verifyWithDatabase(){
+  try{
+    const rows=await SB.call('/rest/v1/v_investment_position?select=*');
+    if(!Array.isArray(rows))return;
+    ST.positions=rows;
+    const local=walletNow();
+    const dbInvested=rows.reduce((a,r)=>a+Number(r.invested||0),0);
+    const diff=Math.abs(dbInvested-local.invested);
+    ST.verified=diff<0.02;
+    if(!ST.verified)console.warn('[conferência] investido local',local.invested,'× banco',dbInvested);
+    const badge=$('sync-badge');
+    if(badge)badge.className='sync-badge '+(ST.verified?'ok':'warn');
+  }catch{/* view ausente: segue com o motor local */}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REALTIME — outra aba/celular mexeu? a tela se atualiza sozinha
+══════════════════════════════════════════════════════════════ */
+let RT=null,rtTimer=null;
+function startRealtime(){
+  if(RT||!SES?.access_token||!('WebSocket' in window))return;
+  try{
+    const url=SUPABASE_URL.replace(/^http/,'ws')+'/realtime/v1/websocket?apikey='+
+      encodeURIComponent(SUPABASE_ANON_KEY)+'&vsn=1.0.0';
+    RT=new WebSocket(url);
+    let ref=0;
+    const send=o=>{try{RT.send(JSON.stringify(o))}catch{}};
+    RT.onopen=()=>{
+      send({topic:'realtime:pl',event:'phx_join',ref:String(++ref),payload:{config:{
+        broadcast:{self:false},presence:{key:''},
+        postgres_changes:[
+          {event:'*',schema:'public',table:'investment_contributions'},
+          {event:'*',schema:'public',table:'investments'},
+        ]},access_token:SES.access_token}});
+      clearInterval(rtTimer);
+      rtTimer=setInterval(()=>send({topic:'phoenix',event:'heartbeat',ref:String(++ref),payload:{}}),25000);
+    };
+    RT.onmessage=e=>{
+      let m;try{m=JSON.parse(e.data)}catch{return}
+      if(m.event==='postgres_changes')scheduleReconcile(250);
+    };
+    RT.onclose=()=>{clearInterval(rtTimer);RT=null;setTimeout(()=>{if(SES)startRealtime()},8000)};
+    RT.onerror=()=>{try{RT.close()}catch{}};
+  }catch{RT=null}
+}
+function stopRealtime(){clearInterval(rtTimer);try{RT&&RT.close()}catch{}RT=null}
+
 /* Cria o plano padrão e as 4 fases na primeira entrada */
 async function seedPlan(){
   try{
@@ -1473,7 +1696,7 @@ async function seedPlan(){
       const r=await SB.ins('plan',Object.assign({user_id:uid()},PLAN_DEFAULT));
       if(r&&r[0])ST.plan=r[0];
     }
-    if(ST.plan&&!ST.phases.length){
+    if(ST.plan&&ST.plan.id&&!ST.phases.length){
       const rows=PHASES_DEFAULT.map(p=>Object.assign({user_id:uid(),plan_id:ST.plan.id},p));
       const r=await SB.ins('plan_phases',rows);
       if(r&&r.length)ST.phases=r.slice().sort((a,b)=>a.phase_number-b.phase_number);
@@ -1481,12 +1704,30 @@ async function seedPlan(){
   }catch(err){/* silencioso: o app funciona com os padrões locais */}
   if(!ST.plan)ST.plan=Object.assign({},PLAN_DEFAULT);
   if(!ST.phases.length)ST.phases=PHASES_DEFAULT.map(p=>Object.assign({},p));
+  ST.rev++;finInvalidate();
 }
 const PLAN=()=>ST.plan||PLAN_DEFAULT;
 
+
 /* ══════════════════════════════════════════════════════════════
-   MOTOR DE CÁLCULO — investimentos, IR/IOF e juros compostos
+   MOTOR FINANCEIRO — FONTE ÚNICA DE VERDADE
+   ───────────────────────────────────────────────────────────────
+   Regra de ouro (nunca use só a aplicação inicial):
+
+     Capital Investido = Aplicação inicial + Aportes + Rolagens − Resgates
+     Valor Bruto       = Capital investido corrigido pela rentabilidade
+                         (cada movimento rende a partir da SUA data)
+                         + proventos lançados (rendimento/dividendo/juros)
+                         − taxas lançadas
+     Valor Líquido     = Valor Bruto − IR − IOF
+     Lucro             = Valor Bruto − Capital Investido   (nunca inclui aporte)
+
+   Tudo é calculado a partir das movimentações reais (ST.contribs),
+   memoizado por ST.rev. Qualquer escrita chama Store.touch(),
+   que invalida o cache e repinta a interface inteira.
 ══════════════════════════════════════════════════════════════ */
+
+/* ── Impostos ────────────────────────────────────────────────── */
 /* IR regressivo (renda fixa tributada) */
 function irRate(days){
   if(days<=180)return 0.225;
@@ -1494,12 +1735,36 @@ function irRate(days){
   if(days<=720)return 0.175;
   return 0.15;
 }
-/* IOF regressivo (resgate em menos de 30 dias) */
+/* IOF regressivo (só nos 30 primeiros dias de cada aplicação) */
+const IOF_TABLE=[100,96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3];
 function iofRate(days){
-  if(days>=30)return 0;
-  const tabela=[100,96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3];
-  return tabela[Math.max(0,Math.min(29,Math.floor(days)))]/100;
+  if(days>=30||days<0)return 0;
+  return IOF_TABLE[Math.max(0,Math.min(29,Math.floor(days)))]/100;
 }
+
+/* ── Semântica das movimentações ─────────────────────────────── */
+/* capital:true  → mexe no CAPITAL INVESTIDO (e rende juros a partir da data)
+   capital:false → mexe só no PATRIMÔNIO/LUCRO (provento ou taxa já realizados) */
+const MOV_RULES={
+  inicial   :{sign:+1,capital:true },
+  aporte    :{sign:+1,capital:true },
+  rolagem   :{sign:+1,capital:true },
+  resgate   :{sign:-1,capital:true },
+  rendimento:{sign:+1,capital:false},
+  dividendo :{sign:+1,capital:false},
+  juros     :{sign:+1,capital:false},
+  correcao  :{sign:+1,capital:false},
+  taxa      :{sign:-1,capital:false},
+};
+const movRule=t=>MOV_RULES[t]||MOV_RULES.aporte;
+const movSign=t=>movRule(t).sign;
+const isCapital=t=>movRule(t).capital;
+const signedAmount=c=>Number(c&&c.amount||0)*movSign(c&&c.movement_type);
+/* compatibilidade com o código antigo */
+function flowSign(t){return movSign(t)}
+function isPrincipal(t){return isCapital(t)}
+
+/* ── Tipos de investimento ───────────────────────────────────── */
 const INV_TYPES={
   ipca:{label:'Tesouro IPCA+',icon:'🏦',color:'#818cf8',cat:'Renda Fixa',ir:true,venc:true,
     fields:['real','ipca'],desc:'Inflação + taxa real. O motor do plano.',
@@ -1541,88 +1806,178 @@ function hexA(hex,a){
   const r=parseInt(f.substring(0,2),16)||148,g=parseInt(f.substring(2,4),16)||163,b=parseInt(f.substring(4,6),16)||184;
   return 'rgba('+r+','+g+','+b+','+a+')';
 }
-const statHTML=(lbl,val,cls,sub)=>'<div class="ip-stat '+(cls||'')+'">'+
+const statHTML=(lbl,val,cls,sub,num)=>'<div class="ip-stat '+(cls||'')+'"'+
+  (num!=null&&isFinite(num)?' data-stat="'+esc(lbl)+'" data-v="'+Number(num)+'"':'')+'>'+
   '<div class="ip-stat-lbl">'+lbl+'</div><div class="ip-stat-val">'+val+'</div>'+
   (sub?'<div class="ip-stat-sub">'+sub+'</div>':'')+'</div>';
 
-function invContribs(invId){
-  return ST.contribs.filter(c=>c.investment_id===invId).slice().sort((a,b)=>{
-    const da=parseDate(a.contribution_date)||parseDate(a.created_at)||0;
-    const db=parseDate(b.contribution_date)||parseDate(b.created_at)||0;
-    return da-db||((a.created_at>b.created_at)?1:-1);
-  });
+/* ══════════════════════════════════════════════════════════════
+   ÍNDICE E CACHE — evita recalcular a mesma coisa duas vezes
+══════════════════════════════════════════════════════════════ */
+const FIN={idxRev:-1,idx:null,pos:new Map(),wal:new Map()};
+function finInvalidate(){FIN.idxRev=-1;FIN.idx=null;FIN.pos.clear();FIN.wal.clear()}
+function movDate(c){return parseDate(c.contribution_date)||parseDate(c.created_at)||new Date(0)}
+function movCmp(a,b){
+  const d=movDate(a)-movDate(b);
+  if(d)return d;
+  return String(a.created_at||'')<String(b.created_at||'')?-1:1;
 }
-function flowSign(t){return t==='resgate'?-1:1}
-function isPrincipal(t){return t!=='rendimento'&&t!=='correcao'}
+/* Movimentações agrupadas por investimento e ordenadas (O(n) uma vez por revisão) */
+function contribIndex(){
+  if(FIN.idx&&FIN.idxRev===ST.rev)return FIN.idx;
+  const m=new Map();
+  for(const c of ST.contribs){
+    if(!c||!c.investment_id)continue;
+    let a=m.get(c.investment_id);
+    if(!a){a=[];m.set(c.investment_id,a)}
+    a.push(c);
+  }
+  for(const a of m.values())a.sort(movCmp);
+  FIN.idx=m;FIN.idxRev=ST.rev;
+  return m;
+}
+/* ATENÇÃO: array compartilhado — nunca mutar (use .slice() antes) */
+function invContribs(invId){return contribIndex().get(invId)||[]}
+const bucket=d=>Math.floor((d instanceof Date?d.getTime():Number(d))/60000); // 1 min
 
-/* Projeta um investimento numa data (cada movimento rende a partir da sua data) */
-function projectInv(inv,atDate){
+/* ══════════════════════════════════════════════════════════════
+   POSIÇÃO DE UM INVESTIMENTO
+══════════════════════════════════════════════════════════════ */
+function computePosition(inv,atDate){
   const rate=invAnnualRate(inv);
-  const isento=!invType(inv).ir;
-  let gross=0,invested=0,ir=0,iof=0;
+  const taxable=!!invType(inv).ir;
+  const now=atDate instanceof Date?atDate:new Date(atDate);
+  let invested=0,gross=0,ir=0,iof=0,proventos=0,taxas=0,
+      aportado=0,resgatado=0,agendado=0,nMov=0,firstDate=null;
+
   for(const c of invContribs(inv.id)){
-    const cd=parseDate(c.contribution_date)||parseDate(c.created_at);
-    if(!cd||cd>atDate)continue;
-    const amt=Number(c.amount||0)*flowSign(c.movement_type);
-    const days=(atDate-cd)/DAY_MS;
-    if(c.movement_type==='rendimento'||c.movement_type==='correcao'){gross+=amt;continue}
-    const grown=amt*Math.pow(1+rate,Math.max(days,0)/365);
-    const gain=grown-amt;
-    gross+=grown;
-    if(isPrincipal(c.movement_type))invested+=amt;
-    if(gain>0){
-      if(!isento)ir+=gain*irRate(days);
+    const cd=movDate(c);
+    const amt=signedAmount(c);
+    if(!isFinite(amt)||amt===0)continue;
+    nMov++;
+    if(!firstDate||cd<firstDate)firstDate=cd;
+
+    if(isCapital(c.movement_type)){
+      /* dias em que o dinheiro efetivamente rendeu (lançamento futuro rende 0 dias,
+         mas JÁ conta no capital investido — nada é silenciosamente ignorado) */
+      const days=Math.max((now-cd)/DAY_MS,0);
+      if(cd>now)agendado+=amt;
+      const grown=amt*Math.pow(1+rate,days/365);
+      const gain=grown-amt;
+      invested+=amt;
+      gross+=grown;
+      if(amt>0)aportado+=amt;else resgatado+=-amt;
+      /* Impostos são provisionados por lote. Lotes negativos (resgates) devolvem
+         a provisão proporcional — mantém a linearidade do cálculo. */
+      if(taxable)ir+=gain*irRate(days);
       iof+=gain*iofRate(days);
+    }else{
+      /* provento/taxa/correção: entra direto no patrimônio, NUNCA no capital */
+      gross+=amt;
+      if(amt>=0)proventos+=amt;else taxas+=-amt;
     }
   }
   if(gross<0)gross=0;
+  ir=Math.max(ir,0);iof=Math.max(iof,0);
   const tax=ir+iof;
-  return {invested,gross,ir,iof,tax,net:gross-tax,gain:gross-invested,netGain:gross-tax-invested};
+  const net=gross-tax;
+  return {
+    invested,                      // capital investido (regra de ouro)
+    gross,                         // valor bruto
+    ir,iof,tax,                    // impostos
+    net,                           // valor líquido
+    gain:gross-invested,           // lucro bruto (só rendimento, nunca aporte)
+    netGain:net-invested,          // lucro líquido
+    proventos,taxas,aportado,resgatado,agendado,
+    nMov,firstDate,rate,taxable,
+    yieldPct:invested>0?((gross-invested)/invested*100):0,
+    rendaMes:gross*(Math.pow(1+rate,1/12)-1),
+    rendaDia:gross*(Math.pow(1+rate,1/365)-1),
+  };
 }
-/* Projeção futura: movimentos reais + aportes mensais planejados */
+/* projectInv(inv, data) — memoizado por (investimento, revisão dos dados, minuto) */
+function projectInv(inv,atDate){
+  if(!inv)return computePosition({kind:'outro'},atDate||new Date());
+  const at=atDate||new Date();
+  const k=inv.id+'|'+ST.rev+'|'+bucket(at);
+  let v=FIN.pos.get(k);
+  if(v)return v;
+  v=computePosition(inv,at);
+  if(FIN.pos.size>800)FIN.pos.clear();
+  FIN.pos.set(k,v);
+  return v;
+}
+/* Projeção futura = movimentos reais + aportes mensais planejados */
 function projectFuture(inv,atDate,mensal){
   const base=projectInv(inv,atDate);
-  if(!mensal||mensal<=0)return base;
-  const rate=invAnnualRate(inv),isento=!invType(inv).ir;
-  const now=new Date();
+  const m=Number(mensal)||0;
+  if(m<=0)return base;
+  const rate=invAnnualRate(inv),taxable=!!invType(inv).ir;
   let gross=base.gross,invested=base.invested,ir=base.ir,iof=base.iof;
+  const now=new Date();
   const d=new Date(now.getFullYear(),now.getMonth()+1,now.getDate());
   let guard=0;
   while(d<=atDate&&guard<720){
-    const days=(atDate-d)/DAY_MS;
-    const grown=mensal*Math.pow(1+rate,days/365);
-    const gain=grown-mensal;
-    gross+=grown;invested+=mensal;
-    if(gain>0&&!isento)ir+=gain*irRate(days);
+    const days=Math.max((atDate-d)/DAY_MS,0);
+    const grown=m*Math.pow(1+rate,days/365);
+    const gain=grown-m;
+    gross+=grown;invested+=m;
+    if(taxable)ir+=gain*irRate(days);
+    iof+=gain*iofRate(days);
     d.setMonth(d.getMonth()+1);guard++;
   }
-  const tax=ir+iof;
-  return {invested,gross,ir,iof,tax,net:gross-tax,gain:gross-invested,netGain:gross-tax-invested};
+  ir=Math.max(ir,0);iof=Math.max(iof,0);
+  const tax=ir+iof,net=gross-tax;
+  return Object.assign({},base,{invested,gross,ir,iof,tax,net,
+    gain:gross-invested,netGain:net-invested,
+    yieldPct:invested>0?((gross-invested)/invested*100):0});
 }
 function annualizedReturn(inv){
-  const cs=invContribs(inv.id);if(!cs.length)return 0;
-  const first=parseDate(cs[0].contribution_date)||parseDate(cs[0].created_at);
-  const years=Math.max((new Date()-first)/DAY_MS/365,1/365);
   const p=projectInv(inv,new Date());
-  if(p.invested<=0)return 0;
-  return (Math.pow(p.gross/p.invested,1/years)-1)*100;
+  if(!p.firstDate||p.invested<=0)return 0;
+  const years=Math.max((new Date()-p.firstDate)/DAY_MS/365,1/365);
+  return (Math.pow(Math.max(p.gross,0.01)/p.invested,1/years)-1)*100;
 }
-/* Carteira consolidada hoje */
-function walletNow(){
-  const now=new Date();
-  let gross=0,invested=0,net=0,tax=0,rendaMes=0;
-  ST.invs.forEach(inv=>{
-    const p=projectInv(inv,now);
-    gross+=p.gross;invested+=p.invested;net+=p.net;tax+=p.tax;
-    rendaMes+=p.gross*(Math.pow(1+invAnnualRate(inv),1/12)-1);
-  });
-  return {gross,invested,net,tax,gain:gross-invested,netGain:net-invested,rendaMes};
+
+/* ══════════════════════════════════════════════════════════════
+   CARTEIRA CONSOLIDADA (usada em TODAS as páginas)
+══════════════════════════════════════════════════════════════ */
+function walletAt(atDate){
+  const at=atDate||new Date();
+  const k=ST.rev+'|'+bucket(at);
+  let w=FIN.wal.get(k);
+  if(w)return w;
+  w={gross:0,invested:0,net:0,tax:0,ir:0,iof:0,gain:0,netGain:0,
+     rendaMes:0,rendaDia:0,proventos:0,taxas:0,aportado:0,resgatado:0,agendado:0,byCat:{},items:[]};
+  for(const inv of ST.invs){
+    const p=projectInv(inv,at);
+    w.gross+=p.gross;w.invested+=p.invested;w.net+=p.net;w.tax+=p.tax;w.ir+=p.ir;w.iof+=p.iof;
+    w.rendaMes+=p.rendaMes;w.rendaDia+=p.rendaDia;
+    w.proventos+=p.proventos;w.taxas+=p.taxas;
+    w.aportado+=p.aportado;w.resgatado+=p.resgatado;w.agendado+=p.agendado;
+    const cat=invType(inv).cat;
+    w.byCat[cat]=(w.byCat[cat]||0)+p.gross;
+    w.items.push({inv,p});
+  }
+  w.gain=w.gross-w.invested;
+  w.netGain=w.net-w.invested;
+  w.yieldPct=w.invested>0?(w.gain/w.invested*100):0;
+  w.items.sort((a,b)=>b.p.gross-a.p.gross);
+  if(FIN.wal.size>200)FIN.wal.clear();
+  FIN.wal.set(k,w);
+  return w;
 }
+function walletNow(){return walletAt(new Date())}
 function mainInv(){
   return ST.invs.find(i=>i.is_main) || ST.invs.find(i=>i.kind==='ipca') || ST.invs[0] || null;
 }
+/* Saldo disponível para resgate (bruto de hoje) */
+function saldoDisponivel(invId){
+  const inv=ST.invs.find(i=>i.id===invId);
+  return inv?Math.max(projectInv(inv,new Date()).gross,0):0;
+}
 
-/* ── Juros compostos genéricos (usados no plano e no simulador) ── */
+/* ── Juros compostos genéricos (plano e simulador) ── */
 function mRate(annual){return Math.pow(1+annual,1/12)-1}
 function monthsToTarget(pv,aporte,annual,target,maxM=1200){
   if(pv>=target)return 0;
@@ -1648,6 +2003,7 @@ function compoundSeries(pv,aporte,annual,years,startDate){
 }
 function addMonths(d,n){const x=new Date(d);x.setMonth(x.getMonth()+n);return x}
 
+
 /* ══════════════════════════════════════════════════════════════
    PÁGINA: PLANO (Projeto de Liberdade Financeira)
 ══════════════════════════════════════════════════════════════ */
@@ -1663,16 +2019,14 @@ function currentPhase(patr){
   const list=ST.phases.slice().sort((a,b)=>a.phase_number-b.phase_number);
   return list.find(p=>patr<Number(p.target_amount||0))||list[list.length-1]||null;
 }
+const isAporte=t=>t==='aporte'||t==='inicial';
 function aporteDoMes(){
-  const now=new Date(),k=monthKey(now);
-  return ST.contribs.filter(c=>{
-    const d=parseDate(c.contribution_date)||parseDate(c.created_at);
-    return d&&monthKey(d)===k&&(c.movement_type==='aporte'||c.movement_type==='inicial');
-  }).reduce((a,c)=>a+Number(c.amount||0),0);
+  const k=monthKey(new Date());
+  return ST.contribs.filter(c=>isAporte(c.movement_type)&&monthKey(movDate(c))===k)
+    .reduce((a,c)=>a+Number(c.amount||0),0);
 }
 function streakMeses(){
-  const set=new Set(ST.contribs.filter(c=>c.movement_type==='aporte'||c.movement_type==='inicial')
-    .map(c=>{const d=parseDate(c.contribution_date)||parseDate(c.created_at);return d?monthKey(d):null}).filter(Boolean));
+  const set=new Set(ST.contribs.filter(c=>isAporte(c.movement_type)).map(c=>monthKey(movDate(c))));
   let n=0;const d=new Date();
   if(!set.has(monthKey(d)))d.setMonth(d.getMonth()-1); // mês corrente ainda pode estar pendente
   while(set.has(monthKey(d))){n++;d.setMonth(d.getMonth()-1)}
@@ -1884,17 +2238,26 @@ async function savePlanCfg(){
     real_rate:brNum(val('pc-real'))||6,
     ipca_rate:brNum(val('pc-ipca'))||4.5,
   };
+  if(!(payload.target_patrimony>0)){fieldErr('pc-meta','Informe a meta de patrimônio.');return}
   setBtn('pc-save',true);
   try{
-    if(ST.plan&&ST.plan.id){
-      const r=await SB.upd('plan',ST.plan.id,payload);
-      if(r&&r[0])ST.plan=r[0];
-    }else{
-      const r=await SB.ins('plan',Object.assign({user_id:uid()},PLAN_DEFAULT,payload));
-      if(r&&r[0])ST.plan=r[0];
-    }
-    closeModal();toast('Plano atualizado.');renderPlanPage();
-  }catch(err){toast('Não foi possível salvar: '+((err&&err.message)||'erro'),'err')}
+    await Store.commit({
+      label:'Não foi possível salvar o plano',
+      persist:async()=>{
+        if(ST.plan&&ST.plan.id){
+          const r=await SB.upd('plan',ST.plan.id,payload);
+          if(!r||!r[0])throw new Error('não confirmado pelo servidor');
+          ST.plan=r[0];
+        }else{
+          const r=await SB.ins('plan',Object.assign({user_id:uid()},PLAN_DEFAULT,payload));
+          if(!r||!r[0])throw new Error('não confirmado pelo servidor');
+          ST.plan=r[0];
+        }
+      },
+      onDone:()=>{closeModal();toast('Plano atualizado ✅')},
+      reconcile:false,
+    });
+  }catch{}
   setBtn('pc-save',false,'Salvar plano');
 }
 function openPhaseForm(id){
@@ -1942,10 +2305,18 @@ async function savePhase(){
   };
   setBtn('pf2-save',true);
   try{
-    const r=await SB.upd('plan_phases',id,payload);
-    if(r&&r[0]){const i=ST.phases.findIndex(x=>x.id===id);if(i>=0)ST.phases[i]=r[0]}
-    closeModal();toast('Fase atualizada.');renderPlanPage();
-  }catch(err){toast('Não foi possível salvar: '+((err&&err.message)||'erro'),'err')}
+    await Store.commit({
+      label:'Não foi possível salvar a fase',
+      persist:async()=>{
+        const r=await SB.upd('plan_phases',id,payload);
+        if(!r||!r[0])throw new Error('não confirmado pelo servidor');
+        const i=ST.phases.findIndex(x=>x.id===id);
+        if(i>=0)ST.phases[i]=r[0];
+      },
+      onDone:()=>{closeModal();toast('Fase atualizada ✅')},
+      reconcile:false,
+    });
+  }catch{}
   setBtn('pf2-save',false,'Salvar fase');
 }
 
@@ -1968,7 +2339,10 @@ function renderInvList(){
     '<div class="ip-hero"><div class="ip-hero-glow"></div>'+
       '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">'+
         '<div><div class="ip-hero-title">💼 Minha carteira</div>'+
-          '<div class="ip-hero-sub">'+ST.invs.length+' investimento'+(ST.invs.length===1?'':'s')+' · patrimônio '+fmt(w.gross)+'</div></div>'+
+          '<div class="ip-hero-sub">'+ST.invs.length+' investimento'+(ST.invs.length===1?'':'s')+' · patrimônio '+fmt(w.gross)+
+            ' · <span class="sync-badge '+(ST.verified===true?'ok':ST.verified===false?'warn':'')+'" id="sync-badge">'+
+            (ST.lastSync?'dados do banco · '+new Date(ST.lastSync).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'sincronizando…')+
+            '</span></div></div>'+
         '<button class="btn btn-g" data-act="openNewInv" type="button">+ Novo investimento</button>'+
       '</div></div>';
 
@@ -1981,12 +2355,12 @@ function renderInvList(){
 
   html+='<div class="sec"><h2>Visão geral</h2></div>'+
     '<div class="ip-stats" style="margin-bottom:16px">'+
-      statHTML('Patrimônio bruto',fmt(w.gross),'s-indigo','valor atual')+
-      statHTML('Total investido',fmt(w.invested),'s-neutral','capital aportado')+
-      statHTML('Lucro bruto',fmt(w.gain),w.gain>=0?'s-green':'s-red',w.invested>0?pctS(w.gain/w.invested*100)+' sobre investido':'—')+
-      statHTML('Valor líquido',fmt(w.net),'s-green','após IR/IOF')+
-      statHTML('Impostos hoje',fmt(w.tax),'s-amber','se resgatar agora')+
-      statHTML('Rende por mês',fmt(w.rendaMes),'s-green','no ritmo atual')+
+      statHTML('Patrimônio bruto',fmt(w.gross),'s-indigo','valor atual',w.gross)+
+      statHTML('Total investido',fmt(w.invested),'s-neutral',fmt(w.aportado)+' aportado'+(w.resgatado>0?' · '+fmt(w.resgatado)+' resgatado':''),w.invested)+
+      statHTML('Lucro bruto',fmt(w.gain),w.gain>=0?'s-green':'s-red',w.invested>0?pctS(w.yieldPct)+' sobre investido':'—',w.gain)+
+      statHTML('Valor líquido',fmt(w.net),'s-green','após IR/IOF',w.net)+
+      statHTML('Impostos hoje',fmt(w.tax),'s-amber','se resgatar agora',w.tax)+
+      statHTML('Rende por mês',fmt(w.rendaMes),'s-green','no ritmo atual',w.rendaMes)+
     '</div>';
 
   const byCat={};
@@ -2073,12 +2447,12 @@ function renderInvDetail(invId){
 
   html+='<div class="sec"><h2>Posição hoje</h2></div>'+
     '<div class="ip-stats" style="margin-bottom:16px">'+
-      statHTML('Valor bruto',fmt(p.gross),'s-indigo','com rendimento')+
-      statHTML('Valor líquido',fmt(p.net),'s-green','se resgatar hoje')+
-      statHTML('Investido',fmt(Math.max(p.invested,0)),'s-neutral',cs.length+' movimentação'+(cs.length===1?'':'ões'))+
-      statHTML('Lucro',fmt(p.gain),p.gain>=0?'s-green':'s-red',pctS(rentAcum)+' acumulado')+
-      statHTML('Impostos hoje',fmt(p.tax),'s-amber',t.ir?'IR + IOF':'isento')+
-      statHTML('Rende/mês',fmt(rMes),'s-green',fmt(rDia)+' por dia')+
+      statHTML('Valor bruto',fmt(p.gross),'s-indigo','capital + rendimento',p.gross)+
+      statHTML('Valor líquido',fmt(p.net),'s-green','se resgatar hoje',p.net)+
+      statHTML('Investido',fmt(p.invested),'s-neutral',cs.length+' movimentação'+(cs.length===1?'':'ões')+(p.resgatado>0?' · −'+fmt(p.resgatado):''),p.invested)+
+      statHTML('Lucro',fmt(p.gain),p.gain>=0?'s-green':'s-red',pctS(rentAcum)+' acumulado',p.gain)+
+      statHTML('Impostos hoje',fmt(p.tax),'s-amber',t.ir?'IR + IOF':'isento',p.tax)+
+      statHTML('Rende/mês',fmt(rMes),'s-green',fmt(rDia)+' por dia',rMes)+
     '</div>';
 
   html+='<div class="sec"><h2>Projeção'+(venc?' até o vencimento':' futura')+'</h2>'+
@@ -2116,11 +2490,13 @@ function renderInvDetail(invId){
 function timelineHTML(cs){
   return cs.slice().reverse().map(c=>{
     const m=MOV_META[c.movement_type]||MOV_META.aporte;
-    const sign=c.movement_type==='resgate'?'−':'+';
-    return '<div class="ap-row">'+
+    const sign=movSign(c.movement_type)<0?'−':'+';
+    const sched=movDate(c)>new Date();
+    return '<div class="ap-row'+(c._pending?' pending':'')+'">'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-size:12.5px;font-weight:600">'+fmtDateFull(c.contribution_date||c.created_at)+
-          ' · <span style="color:'+m[1]+'">'+m[2]+' '+m[0]+'</span></div>'+
+          ' · <span style="color:'+m[1]+'">'+m[2]+' '+m[0]+'</span>'+
+          (sched?'<span class="badge-sched">agendado</span>':'')+'</div>'+
         (c.description||c.notes?'<div class="hint" style="margin-top:2px">'+esc(c.description||c.notes)+'</div>':'')+
       '</div>'+
       '<div class="mono" style="font-family:var(--m);font-weight:700;color:'+m[1]+'">'+sign+' '+fmt(c.amount)+'</div>'+
@@ -2303,69 +2679,90 @@ async function saveInvFull(){
     cdi_percent:numOrNull('if-cdipct'),
     notes:val('if-obs')||null,
   };
-  fieldErr('if-nome','');
+  fieldErr('if-nome','');fieldErr('if-venc','');
   if(!nome){fieldErr('if-nome','Informe o nome.');return}
+  if(payload.maturity_date&&payload.maturity_date<=payload.purchase_date){
+    fieldErr('if-venc','O vencimento tem que ser depois da aplicação.');return;
+  }
+  const inicial=brNum(gv('if-inicial'));
   setBtn('save-inv2',true);
   try{
     let invId=id;
-    if(id){
-      const r=await SB.upd('investments',id,payload);
-      if(!r||!r[0])throw new Error('não confirmado pelo servidor');
-      const i=ST.invs.findIndex(x=>x.id===id);if(i>=0)ST.invs[i]=r[0];
-    }else{
-      const primeiro=!ST.invs.length;
-      const r=await SB.ins('investments',Object.assign({user_id:uid(),amount_invested:0,is_main:primeiro||kind==='ipca'},payload));
-      if(!r||!r[0]||!r[0].id)throw new Error('não confirmado pelo servidor');
-      ST.invs.unshift(r[0]);invId=r[0].id;
-      const inicial=brNum(gv('if-inicial'));
-      if(inicial>0){
-        const cr=await SB.ins('investment_contributions',{investment_id:invId,amount:inicial,
-          contribution_date:payload.purchase_date,movement_type:'inicial',user_id:uid()});
-        if(cr&&cr[0])ST.contribs.unshift(cr[0]);
-        await SB.upd('investments',invId,{amount_invested:inicial}).catch(()=>{});
-      }
-      toast('Investimento criado! 🌱');
-    }
-    closeModal();
-    ST.invView={mode:'detail',id:invId};
-    renderInvPage();
-  }catch(err){toast('Não foi possível salvar: '+((err&&err.message)||'erro'),'err')}
+    await Store.commit({
+      label:'Não foi possível salvar o investimento',
+      persist:async()=>{
+        if(id){
+          const r=await SB.upd('investments',id,payload);
+          if(!r||!r[0])throw new Error('não confirmado pelo servidor');
+          const i=ST.invs.findIndex(x=>x.id===id);if(i>=0)ST.invs[i]=r[0];
+          return r[0];
+        }
+        const primeiro=!ST.invs.length;
+        const r=await SB.ins('investments',Object.assign({user_id:uid(),amount_invested:0,is_main:primeiro||kind==='ipca'},payload));
+        if(!r||!r[0]||!r[0].id)throw new Error('não confirmado pelo servidor');
+        ST.invs.unshift(r[0]);invId=r[0].id;
+        if(inicial>0){
+          const cr=await SB.ins('investment_contributions',{investment_id:invId,amount:inicial,
+            contribution_date:payload.purchase_date,movement_type:'inicial',
+            description:'Aplicação inicial',user_id:uid()});
+          if(cr&&cr[0])ST.contribs.unshift(cr[0]);
+        }
+        return r[0];
+      },
+      onDone:()=>{
+        closeModal();
+        ST.invView={mode:'detail',id:invId};
+        toast(id?'Investimento atualizado ✅':'Investimento criado! 🌱');
+      },
+    });
+  }catch{/* toast + rollback já tratados no Store.commit */}
   setBtn('save-inv2',false,id?'Salvar alterações':'Criar investimento');
 }
 async function delInvFull(id){
-  const ok=await confirmModal('Excluir investimento','Excluir este investimento e todas as suas movimentações? Não pode ser desfeito.','Excluir');
+  const inv=ST.invs.find(i=>i.id===id);
+  const n=invContribs(id).length;
+  const ok=await confirmModal('Excluir investimento',
+    'Excluir "'+(inv?inv.name:'este ativo')+'" e as '+n+' movimentação'+(n===1?'':'ões')+' dele? Não pode ser desfeito.','Excluir');
   if(!ok)return;
   ldr(true,'Excluindo...');
   try{
-    await SB.del('investments',id);
-    ST.invs=ST.invs.filter(i=>i.id!==id);
-    ST.contribs=ST.contribs.filter(c=>c.investment_id!==id);
-    ST.invView={mode:'list',id:null};
-    toast('Investimento excluído');
-    renderInvPage();
-  }catch(err){toast('Não foi possível excluir: '+((err&&err.message)||'erro'),'err')}
+    await Store.commit({
+      label:'Não foi possível excluir',
+      optimistic:()=>{
+        ST.invs=ST.invs.filter(i=>i.id!==id);
+        ST.contribs=ST.contribs.filter(c=>c.investment_id!==id);
+        ST.invView={mode:'list',id:null};
+      },
+      persist:()=>SB.del('investments',id),
+      onDone:()=>toast('Investimento excluído'),
+    });
+  }catch{}
   ldr(false);
 }
 async function setMainInv(id){
-  ldr(true,'Atualizando...');
+  const alvo=ST.invs.find(i=>i.id===id);
+  if(!alvo||alvo.is_main)return;
   try{
-    for(const inv of ST.invs){
-      const shouldBe=inv.id===id;
-      if(!!inv.is_main!==shouldBe){
-        const r=await SB.upd('investments',inv.id,{is_main:shouldBe}).catch(()=>null);
-        inv.is_main=shouldBe;
-        if(r&&r[0]){const i=ST.invs.findIndex(x=>x.id===inv.id);if(i>=0)ST.invs[i]=r[0]}
-      }
-    }
-    toast('Investimento principal definido 👑');
-    renderInvPage();
-  }catch(err){toast(friendly(err),'err')}
-  ldr(false);
+    await Store.commit({
+      label:'Não foi possível definir o principal',
+      optimistic:()=>{ST.invs.forEach(i=>{i.is_main=(i.id===id)})},
+      persist:async()=>{
+        const antigos=ST.invs.filter(i=>i.id!==id);
+        await Promise.all(antigos.filter(i=>i.is_main).map(i=>SB.upd('investments',i.id,{is_main:false})));
+        await SB.upd('investments',id,{is_main:true});
+      },
+      onDone:()=>toast('Investimento principal definido 👑'),
+    });
+  }catch{}
 }
 function openInvDetail(id){ST.invView={mode:'detail',id};nav('wallet')}
 function backInvList(){ST.invView={mode:'list',id:null};renderInvPage()}
 
-/* ══════════════ MOVIMENTAÇÕES ══════════════ */
+/* ══════════════════════════════════════════════════════════════
+   MOVIMENTAÇÕES — o coração do sistema
+   Toda movimentação salva recalcula: cards, gráficos, projeções,
+   patrimônio, rendimento, histórico e o plano. Sem recarregar a página.
+══════════════════════════════════════════════════════════════ */
 function openAddMovInv(invId){
   const cs=invContribs(invId);
   openMovForm({investment_id:invId,movement_type:cs.length?'aporte':'inicial',contribution_date:todayISO(),
@@ -2388,9 +2785,12 @@ function openMovForm(data){
       '<div class="card-actions"><button class="btn btn-g" data-act="openNewInv" type="button">+ Novo investimento</button></div>');
     return;
   }
-  const opts=MOV_TYPES.map(([k,l])=>'<option value="'+k+'"'+(k===(data.movement_type||'aporte')?' selected':'')+'>'+
+  const tipo=data.movement_type||'aporte';
+  const opts=MOV_TYPES.map(([k,l])=>'<option value="'+k+'"'+(k===tipo?' selected':'')+'>'+
     (MOV_META[k]?MOV_META[k][2]+' ':'')+l+'</option>').join('');
   const invSel=data.investment_id||(mainInv()||{}).id||'';
+  const meta=Number(PLAN().monthly_contribution)||300;
+  const chips=[meta,meta*2,300,500,1000].filter((v,i,a)=>v>0&&a.indexOf(v)===i).slice(0,4);
   openModal(data.id?'Editar movimentação':'Nova movimentação',
     '<div class="fg"><label class="lbl" for="mv2-inv">Investimento</label>'+
       '<select class="inp" id="mv2-inv">'+invOptions(invSel)+'</select></div>'+
@@ -2401,13 +2801,49 @@ function openMovForm(data){
     '<div class="fg"><label class="lbl" for="mv2-v">Valor</label>'+
       '<div class="money-wrap"><span class="pfx">R$</span>'+
       '<input class="inp mask-money" type="text" inputmode="decimal" id="mv2-v" value="'+
-        esc(data.amount!=null?nfMoney.format(Number(data.amount)):'')+'" placeholder="0,00"/></div></div>'+
+        esc(data.amount!=null?nfMoney.format(Number(data.amount)):'')+'" placeholder="0,00"/></div>'+
+      '<div class="chips" id="mv2-chips">'+chips.map(v=>
+        '<button class="chip" type="button" data-chip="'+v+'">'+fmt(v)+'</button>').join('')+'</div></div>'+
     '<div class="fg"><label class="lbl" for="mv2-n">Descrição (opcional)</label>'+
       '<input class="inp" type="text" id="mv2-n" maxlength="120" value="'+esc(data.description||data.notes||'')+'" placeholder="Ex: aporte de julho"/></div>'+
+    '<div class="mv-preview" id="mv2-prev"></div>'+
     (data.id?'<input type="hidden" id="mv2-id" value="'+esc(data.id)+'"/>':'')+
     '<div class="card-actions">'+
       '<button class="btn btn-o" data-act="closeModal" type="button">Cancelar</button>'+
       '<button class="btn btn-g" id="save-mv2" data-act="saveMovInv" type="button">Salvar</button></div>');
+
+  const upd=()=>previewMov(data.id);
+  ['mv2-inv','mv2-t','mv2-d','mv2-v'].forEach(id=>{
+    const e=$(id);if(!e)return;
+    e.addEventListener('input',upd);e.addEventListener('change',upd);
+  });
+  const chipBox=$('mv2-chips');
+  if(chipBox)chipBox.addEventListener('click',e=>{
+    const b=e.target.closest('[data-chip]');if(!b)return;
+    $('mv2-v').value=nfMoney.format(Number(b.dataset.chip));
+    upd();
+  });
+  upd();
+}
+/* Prévia em tempo real: mostra o impacto ANTES de salvar */
+function previewMov(editingId){
+  const box=$('mv2-prev');if(!box)return;
+  const invId=val('mv2-inv'),type=val('mv2-t'),amount=brNum(val('mv2-v')),date=val('mv2-d');
+  const inv=ST.invs.find(i=>i.id===invId);
+  if(!inv||!(amount>0)){box.classList.remove('show');box.innerHTML='';return}
+  const antes=projectInv(inv,new Date());
+  const delta=amount*movSign(type);
+  const capital=isCapital(type);
+  const novoInvestido=antes.invested+(capital?delta:0);
+  const novoBruto=antes.gross+delta;
+  const futuro=parseDate(date)>new Date();
+  box.classList.add('show');
+  box.innerHTML=
+    '<div class="mv-prev-t">Impacto imediato em '+esc(inv.name)+'</div>'+
+    '<div class="mv-prev-row"><span>Investido</span><span class="mono">'+fmt(antes.invested)+' → <b>'+fmt(novoInvestido)+'</b></span></div>'+
+    '<div class="mv-prev-row"><span>Valor bruto</span><span class="mono">'+fmt(antes.gross)+' → <b>'+fmt(Math.max(novoBruto,0))+'</b></span></div>'+
+    (capital?'':'<div class="mv-prev-note">Este tipo entra como '+(delta>=0?'lucro':'custo')+' — não altera o capital investido.</div>')+
+    (futuro?'<div class="mv-prev-note">📅 Data futura: já conta no capital investido e passa a render a partir da data escolhida.</div>':'');
 }
 function openQuickAporte(){
   const inv=mainInv();
@@ -2417,50 +2853,95 @@ function openQuickAporte(){
 }
 async function saveMovInv(){
   const id=val('mv2-id'),invId=val('mv2-inv');
-  const amount=brNum(val('mv2-v')),date=val('mv2-d'),type=val('mv2-t'),notes=val('mv2-n');
-  fieldErr('mv2-v','');
+  const amount=brNum(val('mv2-v')),date=val('mv2-d')||todayISO(),type=val('mv2-t')||'aporte',notes=val('mv2-n');
+  fieldErr('mv2-v','');fieldErr('mv2-inv','');fieldErr('mv2-d','');
+
+  /* ── Validações ── */
+  if(!invId||!ST.invs.some(i=>i.id===invId)){fieldErr('mv2-inv','Escolha o investimento.');return}
   if(!(amount>0)){fieldErr('mv2-v','Informe um valor maior que zero.');return}
-  setBtn('save-mv2',true);
-  try{
-    if(id){
-      const r=await SB.upd('investment_contributions',id,
-        {investment_id:invId,amount,contribution_date:date||null,movement_type:type,description:notes||null});
-      if(!r||!r[0])throw new Error('não confirmado');
-      const i=ST.contribs.findIndex(x=>x.id===id);if(i>=0)ST.contribs[i]=r[0];
-    }else{
-      const r=await SB.ins('investment_contributions',
-        {investment_id:invId,amount,contribution_date:date||null,movement_type:type,
-         description:notes||null,user_id:uid()});
-      if(!r||!r[0]||!r[0].id)throw new Error('não confirmado');
-      ST.contribs.unshift(r[0]);
-      if(type==='aporte'||type==='inicial')toast('Aporte de '+fmt(amount)+' registrado! 🚀');
+  if(amount>1e11){fieldErr('mv2-v','Valor fora do limite.');return}
+  if(!parseDate(date)){fieldErr('mv2-d','Data inválida.');return}
+  if(type==='resgate'){
+    const saldo=saldoDisponivel(invId)+(id?Number((ST.contribs.find(c=>c.id===id)||{}).amount||0):0);
+    if(amount>saldo+0.01){
+      const ok=await confirmModal('Resgate maior que o saldo',
+        'O saldo bruto deste ativo hoje é '+fmt(saldo)+'. Registrar um resgate de '+fmt(amount)+' vai zerar/negativar a posição. Continuar?','Registrar mesmo assim');
+      if(!ok)return;
     }
-    syncInvestedAmount(invId);
-    closeModal();
-    loadPage(ST.page);
-  }catch(err){toast('Não foi possível salvar: '+((err&&err.message)||'erro'),'err')}
+  }
+
+  const payload={investment_id:invId,amount,contribution_date:date,movement_type:type,description:notes||null};
+  setBtn('save-mv2',true);
+  const tempId='tmp_'+Math.random().toString(36).slice(2);
+  try{
+    await Store.commit({
+      label:'Não foi possível salvar',
+      optimistic:()=>{
+        if(id){
+          const i=ST.contribs.findIndex(x=>x.id===id);
+          if(i>=0)ST.contribs[i]=Object.assign({},ST.contribs[i],payload);
+        }else{
+          ST.contribs.unshift(Object.assign({id:tempId,user_id:uid(),created_at:new Date().toISOString(),_pending:true},payload));
+        }
+      },
+      persist:async()=>{
+        if(id){
+          const r=await SB.upd('investment_contributions',id,payload);
+          if(!r||!r[0])throw new Error('não confirmado pelo servidor');
+          const i=ST.contribs.findIndex(x=>x.id===id);if(i>=0)ST.contribs[i]=r[0];
+          return r[0];
+        }
+        const r=await SB.ins('investment_contributions',Object.assign({user_id:uid()},payload));
+        if(!r||!r[0]||!r[0].id)throw new Error('não confirmado pelo servidor');
+        const i=ST.contribs.findIndex(x=>x.id===tempId);
+        if(i>=0)ST.contribs[i]=r[0];else ST.contribs.unshift(r[0]);
+        return r[0];
+      },
+      onDone:()=>{
+        closeModal();
+        const w=walletNow();
+        if(id)toast('Movimentação atualizada ✅');
+        else if(type==='aporte'||type==='inicial')
+          toast((type==='aporte'?'Aporte':'Aplicação inicial')+' de '+fmt(amount)+' registrado! Investido agora: '+fmt(w.invested)+' 🚀');
+        else toast(MOV_META[type][0]+' de '+fmt(amount)+' registrado ✅');
+      },
+    });
+  }catch{/* rollback e toast já feitos */}
   setBtn('save-mv2',false,'Salvar');
 }
 async function delMovInv(id){
   const c=ST.contribs.find(x=>x.id===id);
-  const ok=await confirmModal('Excluir movimentação','Deseja excluir esta movimentação?','Excluir');
+  if(!c)return;
+  const ok=await confirmModal('Excluir movimentação',
+    'Excluir '+(MOV_META[c.movement_type]||MOV_META.aporte)[0].toLowerCase()+' de '+fmt(c.amount)+
+    ' ('+fmtDateFull(c.contribution_date||c.created_at)+')? A carteira será recalculada.','Excluir');
   if(!ok)return;
-  ldr(true);
+  const backup=Object.assign({},c);
   try{
-    await SB.del('investment_contributions',id);
-    ST.contribs=ST.contribs.filter(x=>x.id!==id);
-    if(c)syncInvestedAmount(c.investment_id);
-    loadPage(ST.page);
-  }catch(err){toast('Não foi possível excluir: '+((err&&err.message)||'erro'),'err')}
-  ldr(false);
+    await Store.commit({
+      label:'Não foi possível excluir',
+      optimistic:()=>{ST.contribs=ST.contribs.filter(x=>x.id!==id)},
+      persist:()=>SB.del('investment_contributions',id),
+      onDone:()=>toast('Movimentação excluída','ok',{label:'Desfazer',fn:()=>restoreMov(backup)}),
+    });
+  }catch{}
 }
-function syncInvestedAmount(invId){
-  const inv=ST.invs.find(i=>i.id===invId);if(!inv)return;
-  const total=invContribs(invId).filter(c=>isPrincipal(c.movement_type))
-    .reduce((a,c)=>a+Number(c.amount)*flowSign(c.movement_type),0);
-  inv.amount_invested=Math.max(total,0);
-  SB.upd('investments',invId,{amount_invested:inv.amount_invested}).catch(()=>{});
+async function restoreMov(c){
+  try{
+    await Store.commit({
+      label:'Não foi possível desfazer',
+      persist:async()=>{
+        const r=await SB.ins('investment_contributions',{
+          investment_id:c.investment_id,amount:c.amount,contribution_date:c.contribution_date,
+          movement_type:c.movement_type,description:c.description||null,user_id:uid()});
+        if(r&&r[0])ST.contribs.unshift(r[0]);
+        return r;
+      },
+      onDone:()=>toast('Movimentação restaurada ↩️'),
+    });
+  }catch{}
 }
+
 
 /* ══════════════════════════════════════════════════════════════
    PÁGINA: APORTES
@@ -2509,12 +2990,12 @@ async function renderAportesPage(){
     '</div></div>';
 
   html+='<div class="ip-stats" style="margin-bottom:16px">'+
-    statHTML('Total aportado',fmt(total),'s-green','desde o começo')+
-    statHTML('Aportado em '+ano,fmt(noAno),'s-indigo',(noAno/(meta*12)*100).toFixed(0)+'% da meta anual')+
-    statHTML('Média por mês',fmt(media),'s-neutral','meta: '+fmt(meta))+
-    statHTML('Este mês',fmt(mesAtual),mesAtual>=meta?'s-green':'s-amber',mesAtual>=meta?'meta batida':'faltam '+fmt(Math.max(meta-mesAtual,0)))+
+    statHTML('Total aportado',fmt(total),'s-green','desde o começo',total)+
+    statHTML('Aportado em '+ano,fmt(noAno),'s-indigo',(noAno/(meta*12)*100).toFixed(0)+'% da meta anual',noAno)+
+    statHTML('Média por mês',fmt(media),'s-neutral','meta: '+fmt(meta),media)+
+    statHTML('Este mês',fmt(mesAtual),mesAtual>=meta?'s-green':'s-amber',mesAtual>=meta?'meta batida':'faltam '+fmt(Math.max(meta-mesAtual,0)),mesAtual)+
     statHTML('Meses seguidos',String(streak),'s-green','sem furar a disciplina')+
-    statHTML('Maior aporte',fmt(maior),'s-neutral','recorde pessoal')+
+    statHTML('Maior aporte',fmt(maior),'s-neutral','recorde pessoal',maior)+
   '</div>';
 
   html+='<div class="card flat mb14">'+
@@ -2563,12 +3044,14 @@ function renderApList(){
   el.innerHTML='<div style="display:flex;flex-direction:column;gap:7px">'+slice.map(c=>{
     const m=MOV_META[c.movement_type]||MOV_META.aporte;
     const inv=ST.invs.find(i=>i.id===c.investment_id);
-    const sign=c.movement_type==='resgate'?'−':'+';
-    return '<div class="ap-row">'+
+    const sign=movSign(c.movement_type)<0?'−':'+';
+    const sched=movDate(c)>new Date();
+    return '<div class="ap-row'+(c._pending?' pending':'')+'">'+
       '<div class="ms-ico">'+m[2]+'</div>'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-size:12.8px;font-weight:650">'+esc(inv?inv.name:'—')+
-          ' · <span style="color:'+m[1]+'">'+m[0]+'</span></div>'+
+          ' · <span style="color:'+m[1]+'">'+m[0]+'</span>'+
+          (sched?'<span class="badge-sched">agendado</span>':'')+'</div>'+
         '<div class="hint" style="margin-top:2px">'+fmtDateFull(c.contribution_date||c.created_at)+
           (c.description?' · '+esc(c.description):'')+'</div>'+
       '</div>'+
@@ -2745,16 +3228,18 @@ function exportCsv(){
   toast('CSV exportado.');
 }
 function exportBackup(){
+  /* backup completo: plano, fases, investimentos, movimentações e posições */
   const data={exported_at:new Date().toISOString(),plan:ST.plan,phases:ST.phases,
     investments:ST.invs,contributions:ST.contribs};
   download('projeto_liberdade_backup_'+todayISO()+'.json',JSON.stringify(data,null,2),'application/json');
   toast('Backup gerado.');
 }
 async function reloadData(){
-  closeModal();ldr(true,'Recarregando...');
-  await sync(true);
-  await loadPage(ST.page);
-  ldr(false);toast('Dados atualizados.');
+  closeModal();
+  ldr(true,'Recarregando do banco...');
+  const ok=await sync(true);
+  ldr(false);
+  if(ok){Store.touch();toast('Dados atualizados do Supabase ✅');if(ST.hasViews)verifyWithDatabase()}
 }
 function openMore(){
   openModal('Ferramentas',
@@ -2849,8 +3334,15 @@ $('r-pass').addEventListener('input',()=>{
 
 function paintOnline(){$('offline').classList.toggle('on',!navigator.onLine)}
 window.addEventListener('online',()=>{paintOnline();toast('Conexão restabelecida.','ok');
-  if($('sc-app').classList.contains('active'))sync(true).then(()=>loadPage(ST.page))});
+  if($('sc-app').classList.contains('active'))sync(true).then(ok=>{if(ok)Store.touch();startRealtime()})});
 window.addEventListener('offline',()=>{paintOnline();toast('Você está offline.','err')});
+/* Voltou para a aba? confere o banco (o app nunca mostra número velho) */
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&SES&&ST.loaded&&$('sc-app').classList.contains('active')){
+    if(Date.now()-ST.lastSync>20000)scheduleReconcile(0);
+    startRealtime();
+  }
+});
 (function(){
   const m=mq('(prefers-color-scheme: light)');
   const h=()=>{if(!LS.g('theme'))applyTheme(null,false)};
