@@ -1,0 +1,514 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+--  PROJETO LIBERDADE — BANCO DE DADOS v2 (Supabase / PostgreSQL)
+--
+--  O que mudou em relação à v1:
+--    1. Novos tipos de movimentação: dividendo, juros, taxa.
+--    2. Colunas GERADAS: signed_amount e is_capital  → a regra do capital
+--       investido passa a viver no BANCO, não no front-end.
+--    3. TRIGGER que mantém investments.amount_invested sempre correto
+--       (antes o front-end atualizava esse cache "na mão" e ele desalinhava).
+--    4. VIEWS que calculam investido / bruto / IR / IOF / líquido / lucro
+--       direto no PostgreSQL — o app confere os cards contra elas.
+--    5. Tabela wallets (múltiplas carteiras) e investments.wallet_id.
+--    6. Realtime ligado nas tabelas → outra aba/celular atualiza sozinho.
+--
+--  Rode o script INTEIRO no SQL Editor do Supabase (Run).
+--  É idempotente e não destrói dados: pode rodar em cima da v1.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+create extension if not exists "pgcrypto";
+
+-- ─────────────────────────────────────────────────────────────
+-- 0) Utilitário: updated_at automático
+-- ─────────────────────────────────────────────────────────────
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 1) PROFILES
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  full_name   text,
+  avatar_url  text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- 2) PLAN
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.plan (
+  id                    uuid primary key default gen_random_uuid(),
+  user_id               uuid not null references auth.users(id) on delete cascade,
+  target_patrimony      numeric(14,2) not null default 2000000,
+  target_income         numeric(14,2) not null default 10000,
+  monthly_contribution  numeric(14,2) not null default 300,
+  real_rate             numeric(6,3)  not null default 6,
+  ipca_rate             numeric(6,3)  not null default 4.5,
+  withdraw_rate         numeric(6,3)  not null default 6,
+  start_date            date          not null default '2026-07-01',
+  notes                 text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  constraint plan_one_per_user unique (user_id)
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- 3) PLAN_PHASES
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.plan_phases (
+  id                    uuid primary key default gen_random_uuid(),
+  user_id               uuid not null references auth.users(id) on delete cascade,
+  plan_id               uuid references public.plan(id) on delete cascade,
+  phase_number          int  not null,
+  name                  text not null,
+  emoji                 text default '📍',
+  description           text,
+  steps                 jsonb not null default '[]'::jsonb,
+  start_date            date,
+  end_date              date,
+  target_amount         numeric(14,2) not null default 0,
+  expected_contributed  numeric(14,2) not null default 0,
+  status                text not null default 'pendente'
+                        check (status in ('pendente','ativa','concluida')),
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+  constraint phase_unique_per_user unique (user_id, phase_number)
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- 4) WALLETS — preparado para múltiplas carteiras no futuro
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.wallets (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  name        text not null default 'Minha carteira',
+  color       text default '#818cf8',
+  icon        text default '💼',
+  is_default  boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create unique index if not exists idx_wallet_default
+  on public.wallets(user_id) where is_default;
+
+-- ─────────────────────────────────────────────────────────────
+-- 5) INVESTMENTS
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.investments (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  name            text not null,
+  kind            text not null default 'outro'
+                  check (kind in ('ipca','selic','prefixado','cdb','lci','caixinha',
+                                  'fii','etf','acoes','cripto','poupanca','outro')),
+  category        text,
+  institution     text,
+  is_main         boolean not null default false,
+  color           text default '#818cf8',
+  icon            text default '🏦',
+  purchase_date   date not null default current_date,
+  maturity_date   date,
+  amount_invested numeric(14,2) not null default 0,  -- CACHE mantido por TRIGGER
+  monthly_goal    numeric(14,2) default 300,
+  return_rate     numeric(8,3),
+  ipca_rate       numeric(8,3),
+  selic_rate      numeric(8,3),
+  cdi_rate        numeric(8,3),
+  cdi_percent     numeric(8,3),
+  notes           text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+alter table public.investments add column if not exists wallet_id   uuid references public.wallets(id) on delete set null;
+alter table public.investments add column if not exists is_archived boolean not null default false;
+
+-- ─────────────────────────────────────────────────────────────
+-- 6) INVESTMENT_CONTRIBUTIONS — todas as movimentações
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.investment_contributions (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users(id) on delete cascade,
+  investment_id     uuid not null references public.investments(id) on delete cascade,
+  movement_type     text not null default 'aporte',
+  amount            numeric(14,2) not null,
+  contribution_date date not null default current_date,
+  description       text,
+  notes             text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+-- 6.1) Tipos de movimentação (agora com dividendo, juros e taxa)
+alter table public.investment_contributions
+  drop constraint if exists investment_contributions_movement_type_check;
+alter table public.investment_contributions
+  add constraint investment_contributions_movement_type_check
+  check (movement_type in ('inicial','aporte','resgate','rolagem',
+                           'rendimento','dividendo','juros','taxa','correcao'));
+
+-- 6.2) Valor: sempre > 0, exceto 'correcao' (que pode ser negativa)
+alter table public.investment_contributions
+  drop constraint if exists investment_contributions_amount_check;
+alter table public.investment_contributions
+  add constraint investment_contributions_amount_check
+  check (amount <> 0 and (amount > 0 or movement_type = 'correcao'));
+
+-- 6.3) ══ A REGRA DE OURO, DENTRO DO BANCO ══
+--   signed_amount → o valor com o sinal certo (resgate/taxa entram negativos)
+--   is_capital    → se a linha mexe no CAPITAL INVESTIDO
+--                   (inicial, aporte, rolagem, resgate = sim)
+--                   (rendimento, dividendo, juros, taxa, correcao = NÃO: são lucro/custo)
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                 where table_schema='public' and table_name='investment_contributions'
+                   and column_name='signed_amount') then
+    alter table public.investment_contributions
+      add column signed_amount numeric(14,2)
+      generated always as (
+        case when movement_type in ('resgate','taxa') then -abs(amount)
+             when movement_type = 'correcao'          then amount
+             else abs(amount) end
+      ) stored;
+  end if;
+
+  if not exists (select 1 from information_schema.columns
+                 where table_schema='public' and table_name='investment_contributions'
+                   and column_name='is_capital') then
+    alter table public.investment_contributions
+      add column is_capital boolean
+      generated always as (movement_type in ('inicial','aporte','rolagem','resgate')) stored;
+  end if;
+end $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 7) ÍNDICES
+-- ─────────────────────────────────────────────────────────────
+create index if not exists idx_plan_user     on public.plan(user_id);
+create index if not exists idx_phases_user   on public.plan_phases(user_id, phase_number);
+create index if not exists idx_wallets_user  on public.wallets(user_id);
+create index if not exists idx_inv_user      on public.investments(user_id, created_at desc);
+create index if not exists idx_inv_main      on public.investments(user_id) where is_main;
+create index if not exists idx_contrib_user  on public.investment_contributions(user_id, contribution_date desc);
+create index if not exists idx_contrib_inv   on public.investment_contributions(investment_id, contribution_date);
+create index if not exists idx_contrib_cap   on public.investment_contributions(investment_id) where is_capital;
+
+-- ─────────────────────────────────────────────────────────────
+-- 8) TRIGGERS updated_at
+-- ─────────────────────────────────────────────────────────────
+do $$
+declare t text;
+begin
+  foreach t in array array['profiles','plan','plan_phases','wallets','investments','investment_contributions'] loop
+    execute format('drop trigger if exists trg_touch_%1$s on public.%1$I;', t);
+    execute format('create trigger trg_touch_%1$s before update on public.%1$I
+                    for each row execute function public.touch_updated_at();', t);
+  end loop;
+end $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 9) TRIGGER: mantém investments.amount_invested SEMPRE correto
+--    (Aplicação inicial + aportes + rolagens − resgates)
+--    Nunca mais o front-end precisa escrever esse cache.
+-- ─────────────────────────────────────────────────────────────
+create or replace function public.recalc_investment_totals()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_inv uuid := coalesce(new.investment_id, old.investment_id);
+  v_old uuid := old.investment_id;
+begin
+  update public.investments i
+     set amount_invested = coalesce((
+           select sum(c.signed_amount)
+             from public.investment_contributions c
+            where c.investment_id = i.id and c.is_capital), 0)
+   where i.id = v_inv;
+
+  -- movimentação trocada de investimento? o antigo também é recalculado
+  if v_old is not null and v_old <> v_inv then
+    update public.investments i
+       set amount_invested = coalesce((
+             select sum(c.signed_amount)
+               from public.investment_contributions c
+              where c.investment_id = i.id and c.is_capital), 0)
+     where i.id = v_old;
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_recalc_totals on public.investment_contributions;
+create trigger trg_recalc_totals
+  after insert or update or delete on public.investment_contributions
+  for each row execute function public.recalc_investment_totals();
+
+-- Recalcula tudo agora (corrige qualquer valor que ficou "travado" na v1)
+update public.investments i
+   set amount_invested = coalesce((
+         select sum(c.signed_amount)
+           from public.investment_contributions c
+          where c.investment_id = i.id and c.is_capital), 0);
+
+-- ─────────────────────────────────────────────────────────────
+-- 10) MOTOR DE CÁLCULO NO BANCO — IR, IOF e taxa a.a. por tipo
+--     (espelha exatamente o motor do front-end)
+-- ─────────────────────────────────────────────────────────────
+create or replace function public.fn_ir_rate(days numeric)
+returns numeric language sql immutable as $$
+  select case when days <= 180 then 0.225
+              when days <= 360 then 0.200
+              when days <= 720 then 0.175
+              else 0.150 end;
+$$;
+
+create or replace function public.fn_iof_rate(days numeric)
+returns numeric language sql immutable as $$
+  select case when days >= 30 or days < 0 then 0
+              else (array[100,96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,
+                          46,43,40,36,33,30,26,23,20,16,13,10,6,3])
+                   [floor(days)::int + 1] / 100.0 end;
+$$;
+
+-- Rentabilidade nominal esperada (% a.a.) conforme o tipo do ativo
+create or replace function public.fn_annual_rate(
+  kind text, return_rate numeric, ipca_rate numeric,
+  selic_rate numeric, cdi_rate numeric, cdi_percent numeric)
+returns numeric language sql immutable as $$
+  select case kind
+    when 'ipca'      then ((1 + coalesce(return_rate,6)/100) * (1 + coalesce(ipca_rate,4.5)/100) - 1) * 100
+    when 'selic'     then coalesce(selic_rate,15)
+    when 'prefixado' then coalesce(return_rate,10)
+    when 'cdb'       then coalesce(cdi_rate,10.5) * coalesce(cdi_percent,100) / 100
+    when 'lci'       then coalesce(cdi_rate,10.5) * coalesce(cdi_percent,100) / 100
+    when 'caixinha'  then coalesce(cdi_rate,10.5) * coalesce(cdi_percent,100) / 100
+    when 'fii'       then coalesce(return_rate,8)
+    when 'etf'       then coalesce(return_rate,12)
+    when 'acoes'     then coalesce(return_rate,12)
+    when 'cripto'    then coalesce(return_rate,15)
+    when 'poupanca'  then case when coalesce(selic_rate,10.5) > 8.5
+                               then 0.7 * coalesce(selic_rate,10.5)
+                               else (power(1.005,12) - 1) * 100 end
+    else coalesce(return_rate,10)
+  end;
+$$;
+
+-- Ativos isentos de IR
+create or replace function public.fn_is_taxable(kind text)
+returns boolean language sql immutable as $$
+  select kind not in ('lci','fii','poupanca');
+$$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 11) VIEW: posição de cada investimento, calculada pelo PostgreSQL
+--     Investido → Bruto → IR/IOF → Líquido → Lucro
+-- ─────────────────────────────────────────────────────────────
+create or replace view public.v_investment_position as
+with cfg as (
+  select i.id, i.user_id, i.name, i.kind, i.is_main, i.color, i.icon,
+         public.fn_annual_rate(i.kind, i.return_rate, i.ipca_rate,
+                               i.selic_rate, i.cdi_rate, i.cdi_percent) / 100.0 as rate,
+         public.fn_is_taxable(i.kind) as taxable
+    from public.investments i
+   where i.user_id = auth.uid()
+),
+lots as (
+  select c.id, c.investment_id, c.is_capital, c.signed_amount,
+         greatest(extract(epoch from (now() - c.contribution_date::timestamptz)) / 86400.0, 0) as days
+    from public.investment_contributions c
+   where c.user_id = auth.uid()
+),
+calc as (
+  select cfg.id as investment_id,
+         -- capital investido: aplicação inicial + aportes + rolagens − resgates
+         coalesce(sum(l.signed_amount) filter (where l.is_capital), 0) as invested,
+         -- valor bruto: capital corrigido pela rentabilidade + proventos − taxas
+         coalesce(sum(
+           case when l.is_capital
+                then l.signed_amount * power(1 + cfg.rate, l.days / 365.0)
+                else l.signed_amount end), 0) as gross,
+         coalesce(sum(
+           case when l.is_capital and cfg.taxable
+                then (l.signed_amount * power(1 + cfg.rate, l.days / 365.0) - l.signed_amount)
+                     * public.fn_ir_rate(l.days)
+                else 0 end), 0) as ir,
+         coalesce(sum(
+           case when l.is_capital
+                then (l.signed_amount * power(1 + cfg.rate, l.days / 365.0) - l.signed_amount)
+                     * public.fn_iof_rate(l.days)
+                else 0 end), 0) as iof,
+         coalesce(sum(l.signed_amount) filter (where not l.is_capital and l.signed_amount > 0), 0) as proventos,
+         coalesce(sum(-l.signed_amount) filter (where not l.is_capital and l.signed_amount < 0), 0) as taxas,
+         count(l.id) as movimentacoes
+    from cfg left join lots l on l.investment_id = cfg.id
+   group by cfg.id
+)
+select c.investment_id,
+       cfg.user_id, cfg.name, cfg.kind, cfg.is_main, cfg.color, cfg.icon,
+       round(cfg.rate * 100, 3)                      as annual_rate_pct,
+       round(c.invested, 2)                          as invested,
+       round(greatest(c.gross, 0), 2)                as gross,
+       round(greatest(c.ir, 0), 2)                   as ir,
+       round(greatest(c.iof, 0), 2)                  as iof,
+       round(greatest(c.ir,0) + greatest(c.iof,0), 2) as tax,
+       round(greatest(c.gross,0) - greatest(c.ir,0) - greatest(c.iof,0), 2) as net,
+       round(greatest(c.gross,0) - c.invested, 2)    as gain,
+       round(greatest(c.gross,0) - greatest(c.ir,0) - greatest(c.iof,0) - c.invested, 2) as net_gain,
+       round(c.proventos, 2)                         as proventos,
+       round(c.taxas, 2)                             as taxas,
+       c.movimentacoes
+  from calc c
+  join cfg on cfg.id = c.investment_id;
+
+-- ─────────────────────────────────────────────────────────────
+-- 12) VIEW: resumo da carteira (o que alimenta os cards)
+-- ─────────────────────────────────────────────────────────────
+create or replace view public.v_wallet_summary as
+select user_id,
+       count(*)                          as investimentos,
+       round(sum(invested), 2)           as invested,
+       round(sum(gross), 2)              as gross,
+       round(sum(tax), 2)                as tax,
+       round(sum(net), 2)                as net,
+       round(sum(gain), 2)               as gain,
+       round(sum(net_gain), 2)           as net_gain,
+       round(sum(proventos), 2)          as proventos
+  from public.v_investment_position
+ group by user_id;
+
+-- ─────────────────────────────────────────────────────────────
+-- 13) VIEW: aportes por mês (gráfico de disciplina)
+-- ─────────────────────────────────────────────────────────────
+create or replace view public.v_monthly_contributions as
+select user_id,
+       date_trunc('month', contribution_date)::date as mes,
+       round(sum(amount) filter (where movement_type in ('inicial','aporte')), 2) as aportado,
+       round(sum(signed_amount) filter (where is_capital), 2)                     as fluxo_capital,
+       count(*) as movimentacoes
+  from public.investment_contributions
+ where user_id = auth.uid()
+ group by 1, 2;
+
+-- As views são consultadas com a permissão de quem chama (RLS aplicada)
+do $$
+begin
+  execute 'alter view public.v_investment_position   set (security_invoker = on)';
+  execute 'alter view public.v_wallet_summary        set (security_invoker = on)';
+  execute 'alter view public.v_monthly_contributions set (security_invoker = on)';
+exception when others then
+  raise notice 'security_invoker indisponível nesta versão; as views já filtram por auth.uid().';
+end $$;
+
+grant select on public.v_investment_position, public.v_wallet_summary, public.v_monthly_contributions to authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- 14) Perfil + carteira padrão no cadastro
+-- ─────────────────────────────────────────────────────────────
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, full_name)
+  values (new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)))
+  on conflict (id) do nothing;
+
+  insert into public.wallets (user_id, name, is_default)
+  values (new.id, 'Minha carteira', true)
+  on conflict do nothing;
+
+  return new;
+end;
+$$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ─────────────────────────────────────────────────────────────
+-- 15) ROW LEVEL SECURITY
+-- ─────────────────────────────────────────────────────────────
+alter table public.profiles                 enable row level security;
+alter table public.plan                     enable row level security;
+alter table public.plan_phases              enable row level security;
+alter table public.wallets                  enable row level security;
+alter table public.investments              enable row level security;
+alter table public.investment_contributions enable row level security;
+
+drop policy if exists "profiles_select" on public.profiles;
+drop policy if exists "profiles_insert" on public.profiles;
+drop policy if exists "profiles_update" on public.profiles;
+create policy "profiles_select" on public.profiles for select using (auth.uid() = id);
+create policy "profiles_insert" on public.profiles for insert with check (auth.uid() = id);
+create policy "profiles_update" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+
+drop policy if exists "plan_all" on public.plan;
+create policy "plan_all" on public.plan for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "phases_all" on public.plan_phases;
+create policy "phases_all" on public.plan_phases for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "wallets_all" on public.wallets;
+create policy "wallets_all" on public.wallets for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "inv_all" on public.investments;
+create policy "inv_all" on public.investments for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "contrib_all" on public.investment_contributions;
+create policy "contrib_all" on public.investment_contributions for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────
+-- 16) REALTIME — a tela se atualiza sozinha em qualquer aba/celular
+-- ─────────────────────────────────────────────────────────────
+alter table public.investment_contributions replica identity full;
+alter table public.investments              replica identity full;
+do $$
+begin
+  alter publication supabase_realtime add table public.investment_contributions;
+exception when duplicate_object then null; when undefined_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table public.investments;
+exception when duplicate_object then null; when undefined_object then null;
+end $$;
+
+-- ─────────────────────────────────────────────────────────────
+-- 17) STORAGE — avatares
+-- ─────────────────────────────────────────────────────────────
+insert into storage.buckets (id, name, public)
+values ('avatars','avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists "avatars_public_read"  on storage.objects;
+drop policy if exists "avatars_user_write"   on storage.objects;
+drop policy if exists "avatars_user_update"  on storage.objects;
+drop policy if exists "avatars_user_delete"  on storage.objects;
+
+create policy "avatars_public_read" on storage.objects
+  for select using (bucket_id = 'avatars');
+create policy "avatars_user_write" on storage.objects
+  for insert with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars_user_update" on storage.objects
+  for update using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars_user_delete" on storage.objects
+  for delete using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  CONFERÊNCIA (rode logado no app, no SQL Editor use o painel Table Editor):
+--
+--    select name, invested, gross, tax, net, gain from public.v_investment_position;
+--    select * from public.v_wallet_summary;
+--
+--  "invested" tem que bater EXATAMENTE com o card "Investido" da Carteira.
+-- ═══════════════════════════════════════════════════════════════════════════
